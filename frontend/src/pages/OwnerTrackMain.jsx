@@ -2,6 +2,7 @@
 import CardComponent from "../components/CardComponent";
 import NavbarComponent from "../components/NavbarComponent";
 import useFetchData from "../api/getAllMerchant";
+// import {use}
 
 
 function OwnerTrackMain() {
@@ -17,7 +18,7 @@ function OwnerTrackMain() {
         {
           cars !== null ? cars.map((car) => {
             return(
-              <CardComponent carNo={car} location="Grand Trunk Road" />
+              <CardComponent key={car} carNo={car} location="Grand Trunk Road" />
             )
           }) : "No dat found"
         }
