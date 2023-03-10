@@ -6,9 +6,11 @@ const mlModel = require('./routes/getPythonMsg')
 const getAlldriver = require('./routes/getAlldriver')
 const getAllCars = require('./routes/getAllCars');
 const getAllMerchant = require('./routes/getAllMerchant');
+const cors = require('cors');
 
 const app = express();
 
+app.use(cors())
 // Calling the express.json() method for parsing
 app.use(express.json());
 
