@@ -1,9 +1,9 @@
 import { configureStore } from "@reduxjs/toolkit";
-import threatReducer from "./slices/threatSlice"
+import counterReducer from "./slices/countSlice"
 
 export const store = configureStore({
     reducer: {
-        threat: threatReducer
+        counter: counterReducer
     }   
 });
 

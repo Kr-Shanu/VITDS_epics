@@ -2,10 +2,13 @@
 import CardComponent from "../components/CardComponent";
 import NavbarComponent from "../components/NavbarComponent";
 import useFetchData from "../api/getAllMerchant";
-// import {use}
+import { useSelector } from "react-redux";
 
 
 function OwnerTrackMain() {
+
+  const items = useSelector(state => state);
+  console.log("Items.threat = :", items.threat);
 
   var cars;
   const {data, loading} = useFetchData();
