@@ -12,52 +12,78 @@ const upload = multer({ dest: 'uploads/' });
 const app = express();
 const port = 3000;
 
+async function loadModel() {
 
-// Defining the route for handling image uploads
-app.post('/upload', upload.single('image'), async (req, res) => {
+    const modelPath = path.resolve(__dirname, './model/model.json');
+    const model = tf.loadGraphModel('file://' + modelPath);
 
+
+    const weightFilePaths = (__dirname,
+        ['./model/group1-shard1of3.bin',
+            './model/group1-shard2of3.bin',
+            './model/group1-shard1of3.bin']);
+
+    for (const filePath of weightFilePaths) {
+        const buffer = fs.readFileSync(filePath);
+        const weights = new Uint8Array(buffer);
+        const variableName = filePath.split('/').pop().split('.').shift();
+        await tf.io.loadWeights(tf.io.browserFiles([{
+            name: variableName,
+            array: weights
+        }]), model);
+    }
+
+    return model;
+}
+
+
+app.post('/inference', upload.single('image'), async (req, res) => {
     try {
+        const imagePath = req.file.path;
 
-        const modelPath = path.resolve(__dirname, './model/model.json');
-        const model = await tf.loadLayersModel('file://' + modelPath);
+        // Load the model architecture and weights as shown in the previous code snippet
+        const model = await loadModel();
 
-        console.log(modelPath, " is correct");
+        // Load and preprocess the input image
+        const canvas = createCanvas();
+        const ctx = canvas.getContext('2d');
 
+        const image = await loadImage(imagePath);
+        canvas.width = image.width;
+        canvas.height = image.height;
+        ctx.drawImage(image, 0, 0);
 
-        // Converting the image to a TensorFlow.js tensor
-        const input = tf.browser.fromPixels(img);
-        const expandedInput = input.expandDims();
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const inputTensor = tf.browser.fromPixels(imageData).expandDims();
 
-        const predictions = model.predict(expandedInput);
+        // Run inference
+        const outputTensor = model.predict(inputTensor);
 
-        // Converting the predictions to an array
-        const predictionsArray = Array.from(await predictions.data());
+        // Postprocess the output tensor if needed
+        const outputData = outputTensor.arraySync();
 
-        const imageUrl = predictionsArray[0];
+        // Convert output tensor to an output image
+        const outputImage = tf.browser.toPixels(outputTensor.squeeze());
+        const outputCanvas = createCanvas(outputImage.width, outputImage.height);
+        const outputCtx = outputCanvas.getContext('2d');
+        const outputImageData = outputCtx.createImageData(outputImage.width, outputImage.height);
+        outputImageData.data.set(outputImage.data);
+        outputCtx.putImageData(outputImageData, 0, 0);
 
-        // Fetch the image using axios
-        const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-        const imageBuffer = Buffer.from(response.data, 'binary');
+        // Save the output image to the output folder
+        const outputPath = 'path/to/your/output/folder/output.jpg';
+        const outputBuffer = outputCanvas.toBuffer('image/jpeg');
+        fs.writeFileSync(outputPath, outputBuffer);
 
-        // Save the image to a file
-        const outputPath = path.resolve(__dirname, 'output', 'result.jpg');
-        fs.writeFileSync(outputPath, imageBuffer);
+        console.log('Output image saved successfully.');
 
-        console.log('Image saved to:', outputPath);
-
-        // Return the predictions as the response
-        res.status(200).json({ predictions: `Check output folder for result` });
-
+        // Send the output image as a response
+        res.sendFile(outputPath);
     } catch (error) {
         console.error(error);
-        res.status(500).json({ error: 'Internal server error' });
-    } finally {
-
-        // will add a function to delete the output/upload files after the result
-        console.log("Work Done");
+        res.status(500).send('An error occurred during inference.');
     }
 });
-
 
 app.listen(port || 5000, () => {
     console.log(`Server listening on port ${port}`);
